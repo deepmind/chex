@@ -22,6 +22,8 @@ import dataclasses
 import jax
 
 FrozenInstanceError = dataclasses.FrozenInstanceError
+_RESERVED_DCLS_FIELD_NAMES = {"from_tuple", "replace", "to_tuple"}
+_RESERVED_MAPPABLE_DCLS_FIELD_NAMES = {"get", "items", "keys", "values"}
 
 
 def mappable_dataclass(cls, restricted_inheritance=True):
@@ -154,7 +156,20 @@ class _Dataclass():
         frozen=self.frozen)
     # pytype: enable=wrong-keyword-args
 
+    fields_names = set(f.name for f in dataclasses.fields(dcls))
+    invalid_fields = fields_names.intersection(_RESERVED_DCLS_FIELD_NAMES)
+    if invalid_fields:
+      raise ValueError(f"The following dataclass fields are disallowed: "
+                       f"{invalid_fields} ({dcls}).")
+
     if self.mappable_dataclass:
+      invalid_fields = fields_names.intersection(
+          _RESERVED_MAPPABLE_DCLS_FIELD_NAMES)
+      if invalid_fields:
+        raise ValueError(
+            f"The following mappable dataclass fields are disallowed: "
+            f"{invalid_fields} ({dcls}).")
+
       dcls = mappable_dataclass(dcls, self.restricted_inheritance)
 
     def _from_tuple(args):
